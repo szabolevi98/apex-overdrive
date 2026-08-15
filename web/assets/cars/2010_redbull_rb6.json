@@ -1,7 +1,7 @@
 {
   "_megjegyzes": "Kocsi-beállítások. A .glb mellé, ugyanazzal a névvel. Minden mező elhagyható.",
-  "_yawDegrees": "GYORS becslés. A 'wheel.001' (elöl, z=+1.47) és a puszta 'wheel' (hátul, z=-1.83) külön anyaggal - alapértelmezésként +Z előre.",
+  "_yawDegrees": "Alapértelmezés 0 (előre néző modellt feltételezve). Ha a kocsi hátrafelé áll, ezt kézzel írd át.",
   "yawDegrees": 0,
-  "_wheelPattern": "Újraírva a tools/propose.mjs automatikával (2026-08-03), a repó teljes kocsi-állományának felülvizsgálatakor. A minta a mesh- és anyagnevekből épül, majd a geometria alapján egészül ki a többi kerék-alkatrésszel (a felfüggesztés, a kereszttengelyek és a futómű szándékosan kimaradnak — azok nem forognak a kerékkel). Mérés: 4 szimmetrikus sarok, nyomtáv 1.25, tengelytáv 2.93, 12 darab.\n\nEredeti (kézi) megjegyzés, referenciaként: Élőben megerősítve MŰKÖDIK. Tiszta kerék-anyagok: wheel/wheel.001 (elöl/hátul külön), tread, tyre. CSAPDA: 'RBRWHEEL10' anyag is van (kormánykerék, a kokpitban) - ez TARTALMAZZA a 'wheel' szót nagybetűvel, ezért a puszta 'wheel' minta rosszul elkapná - a ' wheel(.|sorvég)' forma zárja ki (a kormánykerék anyagban a 'WHEEL' elé 'RBR' jön, nem szóköz). Élőben ellenőrizve: 4 szimmetrikus sarok (3/3/3/3, ±0.63 X, ±1.46 Z).",
-  "wheelPattern": "tread|tyre|wheel(?![^\\s])|wheel\\.001(?![^\\s])"
+  "_wheelPattern": "A 2010-es F1 packból vágtuk ki (tools/slice-car-pack.mjs). Abban a packban egyetlen node van, alatta olyan mesh-ekkel, amik az EGÉSZ mezőnyt átfogják, ezért háromszög szinten kellett vágni: minden háromszög a súlypontja szerint került egy kocsihoz. A csapatot a festés textúrájáról azonosítottuk (rajtszám és pilótanév van rajta). Az anyagnevek semmitmondóak, ezért a kerekeket GEOMETRIÁBÓL ismertük fel (tools/audit/wheels-by-geometry.mjs): az az anyag kerék, amit négy sarokra vágva négy egyforma átmérőjű, a forgás síkjában kerek és a gumival koncentrikus csoport áll össze. Mérve: 3 anyag, 12 darab, kerékátmérő 0.61, kilengés 0%. Élőben ellenőrizendő.",
+  "wheelPattern": "Meshpart2Mtl\\.002(?![^\\s])|Meshpart3Mtl(?![^\\s])|Meshpart4Mtl(?![^\\s])"
 }
