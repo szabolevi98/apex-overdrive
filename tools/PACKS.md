@@ -115,9 +115,12 @@ node tools/audit/missing-wheel-parts.mjs
 commit csak a JSON-configot és a `compressed/manifest.json`-t viszi:
 
 ```bash
-scp -P SSH_PORT -i ~/.ssh/example-deploy-key web/assets/cars/<id>.glb root@server.example.com:/opt/racing/web/assets/cars/
-scp -P SSH_PORT -i ~/.ssh/example-deploy-key web/assets/cars/compressed/<id>.glb root@server.example.com:/opt/racing/web/assets/cars/compressed/
+scp web/assets/cars/<id>.glb apex-overdrive-server:/opt/racing/web/assets/cars/
+scp web/assets/cars/compressed/<id>.glb apex-overdrive-server:/opt/racing/web/assets/cars/compressed/
 ```
+
+Az `apex-overdrive-server` saját helyi SSH-alias, nem valódi szervernév;
+a beállításához lásd a [telepítési útmutatót](../DEPLOY.md#ssh-kapcsolat).
 
 Utána HTTP-n is ellenőrizd, ne csak azt, hogy a fájl ott van a lemezen:
 
