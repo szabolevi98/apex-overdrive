@@ -294,9 +294,8 @@ html.data-warning-pending:not(.data-warning-ready) .data-warning-box { visibilit
    szándékosan nem használunk, mert a nyelv nem ország — az angolnak nincs
    egyértelmű zászlaja.
 
-   Miért abszolút, és miért nem a cím MELLETT? A "Levente Racing" 2.25rem-es
-   címnek 274 px kell, a mezőnek 126, a menü belső szélessége viszont 318 —
-   egy sorban 94 px-szel nem férnek el, tehát a cím kettétörne. A sarokba
+   Miért abszolút, és miért nem a cím MELLETT? Az "Apex Overdrive" cím és
+   a nyelvválasztó együtt nem férne el a keskeny menüben. A sarokba
    kiemelve viszont a saroknak úgysincs más gazdája, és a mező NULLA sort visz
    el a sűrű menüből. */
 .lang-field { position: absolute; top: 16px; right: 17px; z-index: 60; }

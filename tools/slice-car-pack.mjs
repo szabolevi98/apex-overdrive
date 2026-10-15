@@ -245,7 +245,7 @@ function buildGlb(source, pieces, usedImages, sourceBin) {
 
   const bin = Buffer.concat(chunks);
   const json = {
-    asset: { version: '2.0', generator: 'levente-racing slice-car-pack' },
+    asset: { version: '2.0', generator: 'apex-overdrive slice-car-pack' },
     scene: 0,
     scenes: [{ nodes: nodes.map((_, i) => i) }],
     nodes,

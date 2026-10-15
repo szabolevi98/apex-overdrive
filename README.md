@@ -1,6 +1,6 @@
-# Racing
+# Apex Overdrive
 
-![Levente Racing — Browser-based racing](web/assets/og-cover-en.jpg)
+![Apex Overdrive — Browser-based racing](web/assets/apex-overdrive-cover-en.jpg)
 
 Böngészőben futó autóverseny-játék valós pályákkal és autókkal. Three.js
 megjelenítés, Rapier fizika, Node.js szerver, WebSocket multiplayer és opcionális
@@ -427,7 +427,7 @@ licencszöveget a [LICENSE](LICENSE) tartalmazza.
 Ha egy módosított változatot hálózaton keresztül mások számára elérhetővé teszel,
 a felhasználóinak jól látható módon fel kell ajánlanod az adott változathoz
 tartozó teljes forráskód ingyenes elérését, a licenc 13. szakasza szerint.
-A játék menüjében közvetlen [forráskódlink](https://github.com/szabolevi98/racing)
+A játék menüjében közvetlen [forráskódlink](https://github.com/szabolevi98/apex-overdrive)
 található. Éles játék: [racing.levente.net](https://racing.levente.net).
 
 A külső könyvtárakra, valamint az autó-, pálya- és környezetmodellekre továbbra

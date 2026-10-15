@@ -140,7 +140,7 @@ async function download(url, attempts = 4) {
   let lastError;
   for (let attempt = 1; attempt <= attempts; attempt++) {
     try {
-      const response = await fetch(url, { headers: { 'User-Agent': 'Levente-Racing-asset-builder' } });
+      const response = await fetch(url, { headers: { 'User-Agent': 'Apex-Overdrive-asset-builder' } });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       return Buffer.from(await response.arrayBuffer());
     } catch (error) {
