@@ -1,63 +1,61 @@
-# Car pack modellek behozatala
+# Importing car packs
 
-Egy „car pack" egyetlen GLB, amiben több kocsi áll egymás mellett. Ez a leírás
-végigvezet a szétvágástól az élesítésig, és megnevezi azokat a buktatókat is,
-amikbe menet közben belefutottunk — azok kerülnek a legtöbbe.
+A car pack is a single GLB containing multiple cars arranged side by side.
+This guide covers splitting, identification, wheel configuration and
+deployment, including pitfalls discovered while processing packs.
 
-A 2010-es, 2013-as és 2014-es F1 pack ezen az úton került be, összesen 34 kocsi.
+The 2010, 2013 and 2014 F1 packs were imported through this workflow,
+adding 34 cars in total.
 
-## 0. Milyen pack van előtted?
+## 0. Identify the pack structure
 
-Ez dönti el, melyik eszköz kell. Először mindig nézd meg:
+Start by inspecting the pack:
 
 ```bash
 node tools/split-car-pack.mjs <pack.glb>
 ```
 
-**A) Kocsinként külön node.** A kimenet annyi csoportot talál, ahány autó van,
-és a nevek is beszédesek (`ferrari_2014_1`). Ez a könnyű eset — maradhatsz a
-`split-car-pack.mjs`-nél.
+**A) Separate nodes for each car.** The output contains one group per car,
+often with useful names such as `ferrari_2014_1`. Use `split-car-pack.mjs`.
 
-**B) Egyetlen node, mindent átfogó mesh-ekkel.** A kimenet egy csoportot talál,
-és a méret gyanúsan nagy (a 2010-esnél 117 egység széles). Ilyenkor a
-hierarchia így néz ki:
+**B) One node with meshes spanning every car.** The output contains one
+suspiciously wide group: the 2010 pack was 117 units wide. Its hierarchy
+looks like this:
 
-```
+```text
 GLTF_SceneRootNode
-  bodywithwheels_0        <- egyetlen node
-    Object_4 [mesh]       <- mindegyik az EGÉSZ mezőnyt átfogja
+  bodywithwheels_0        <- a single node
+    Object_4 [mesh]       <- each mesh spans the entire field
     Object_5 [mesh]
     ...
 ```
 
-Itt nincs mit átcsoportosítani, mert egy mesh több kocsi geometriáját
-tartalmazza. Ehhez a `tools/slice-car-pack.mjs` kell, ami háromszög szinten vág.
+Regrouping nodes cannot separate cars when one mesh contains geometry
+from several cars. Use `tools/slice-car-pack.mjs` to split at triangle level.
 
-Gyors ellenőrzés a két eset megkülönböztetésére: ha a primitívek egy része a
-teljes szélességet átfogja, B-ről van szó.
+A quick distinction: if some primitives span the full pack width, use case B.
 
-## 1. Szétvágás
+## 1. Split the pack
 
-### A eset — node-szintű
+### Case A: node-level splitting
 
 ```bash
 node tools/split-car-pack.mjs <pack.glb> --write
 ```
 
-Nem farag geometriát: kocsinként másolatot készít, amiben az elágazó node
-gyereklistája csak az adott kocsira szűkül, majd a `gltfpack` újraépíti a
-puffert.
+Creates a copy for each car, restricting the branching node's children to
+that car. `gltfpack` then rebuilds the buffer; no geometry is cut.
 
-### B eset — háromszög-szintű
+### Case B: triangle-level splitting
 
 ```bash
 node tools/slice-car-pack.mjs <pack.glb> --write
 ```
 
-Minden háromszöget a súlypontja szerint sorol egy kocsihoz, és kocsinként új
-puffert épít. Csak akkor működik, ha a pack indexelt háromszögekből áll
-`POSITION`/`NORMAL`/`TEXCOORD` attribútumokkal, tömörítés és csontváz nélkül —
-mindhárom eddigi pack ilyen volt. Ellenőrizhető:
+Assigns each triangle to a car by its centroid and builds a new buffer per
+car. This requires indexed triangles with `POSITION`/`NORMAL`/`TEXCOORD`
+attributes, without compression or a skeleton. All three packs processed
+so far met those requirements. Inspect them with:
 
 ```bash
 node --input-type=module -e "
@@ -67,115 +65,113 @@ console.log(g.extensionsUsed, [...new Set(g.meshes.flatMap(m => m.primitives.fla
 "
 ```
 
-## 2. A kocsik azonosítása
+## 2. Identify the cars
 
-A packok jellemzően semmit nem árulnak el (`Body27Mtl`, `Object_4`,
-`MIRRORS.013_18`). **A festés textúrája viszont igen**: rajta van a rajtszám és
-a pilóták neve, amiből az évjárat és a csapat egyértelmű.
+Pack names such as `Body27Mtl`, `Object_4` and `MIRRORS.013_18` often reveal
+nothing. Livery textures contain driver names and racing numbers, which
+can identify the season and team.
 
-Kocsinként pontosan egy EGYEDI anyag van (a karosszériáé), a többi közös a
-mezőnyben. Ezt kiexportálva ránézésre azonosítható mind.
+In these packs, each car has exactly one unique body material; the other
+materials are shared across the field. Export the unique texture for each
+car and inspect it directly. A custom 3D viewer is unnecessary.
 
-**Ne színek alapján tippelj.** A 2010-es packban a `car_0` festése 71%-ban
-piros, ezért Ferrarinak néztem — valójában a **Virgin VR-01** volt. A rajtszám
-(#24 Glock, #25 di Grassi) döntötte el.
+**Do not identify cars by color alone.** In the 2010 pack, `car_0` had a
+livery that was 71% red and appeared to be a Ferrari. It was actually the
+**Virgin VR-01**, identified by the numbers: #24 Glock and #25 di Grassi.
 
-Nem kell 3D-nézőt írni: a textúra önmagában elég.
+## 3. Find wheel patterns
 
-## 3. Kerék-minta
-
-A packból jött kocsiknál a névre épülő `tools/propose.mjs` **nem talál semmit**,
-mert minden anyag ugyanúgy hívják. Helyette:
+The name-based `tools/propose.mjs` cannot find useful patterns in these
+packs because the materials have generic names. Use geometry instead:
 
 ```bash
-node tools/audit/wheels-by-geometry.mjs <kocsi.glb vagy mappa>
+node tools/audit/wheels-by-geometry.mjs <car.glb-or-directory>
 ```
 
-Az az anyag kerék, amit négy sarokra vágva négy egyforma átmérőjű, a forgás
-síkjában kerek és a gumival koncentrikus csoport áll össze. A minta a pontos
-anyagneveket sorolja fel, szóhatárra kötve (`név(?![^\s])`) — enélkül a `rim` a
-`blur_rim`-et is megfogná.
+A wheel material should form four corner groups with equal diameters,
+round shapes in the plane of rotation and centers concentric with the tires.
+The pattern lists exact material names anchored at the name boundary
+(`name(?![^\s])`). Without this boundary, `rim` would also match `blur_rim`.
 
-## 4. Behozatal és élesítés
+## 4. Import and deploy
 
 ```bash
-# 1. a GLB-t a végleges néven a helyére
-cp <szeletelt>.glb web/assets/cars/2013_ferrari_f138.glb
+# 1. Copy the extracted GLB to its final name.
+cp <sliced>.glb web/assets/cars/2013_ferrari_f138.glb
 
-# 2. kerék-config (a fenti geometriai minta alapján)
-# 3. tömörített változat a multiplayerhez
+# 2. Create the wheel configuration using the geometry-based pattern above.
+# 3. Generate the compressed multiplayer model.
 npm run cars:compress -- 2013_ferrari_f138
 
-# 4. ellenőrzés
+# 4. Validate the result.
 node tools/audit/wheel-orbit.mjs --scan
 node tools/audit/missing-wheel-parts.mjs
 ```
 
-Élesítéskor **a GLB-ket külön fel kell tölteni**, mert gitignore-ban vannak — a
-commit csak a JSON-configot és a `compressed/manifest.json`-t viszi:
+**Upload GLBs separately** when deploying: they are excluded from Git.
+The commit transfers only the JSON configuration and `compressed/manifest.json`.
 
 ```bash
 scp web/assets/cars/<id>.glb apex-overdrive-server:/opt/racing/web/assets/cars/
 scp web/assets/cars/compressed/<id>.glb apex-overdrive-server:/opt/racing/web/assets/cars/compressed/
 ```
 
-Az `apex-overdrive-server` saját helyi SSH-alias, nem valódi szervernév;
-a beállításához lásd a [telepítési útmutatót](../DEPLOY.md#ssh-kapcsolat).
+`apex-overdrive-server` is your own local SSH alias, not a real server name.
+See the [deployment guide](../DEPLOY.md#ssh-connection) to configure it.
 
-Utána HTTP-n is ellenőrizd, ne csak azt, hogy a fájl ott van a lemezen:
+Check the public HTTP response as well as the file on disk:
 
 ```bash
 curl -s -o /dev/null -w "%{http_code}\n" https://racing.levente.net/assets/cars/<id>.glb
 ```
 
-### Névütközés
+### Name collisions
 
-Ha a kocsi már létezik, a **régi** kapja a `_2` jelölést, az újonnan behozott a
-sima nevet. Átnevezéskor a szerveren `mv`-vel dolgozz, ne tölts fel újra —
-és ne feledd a `compressed/manifest.json` kulcsait sem.
+If a car ID already exists, give the old model the `_2` suffix and use the
+plain name for the newly imported car. Rename on the server with `mv`
+instead of uploading the file again, and update the keys in
+`compressed/manifest.json`.
 
-Egy következmény, amivel számolni kell: a köridő-rekordok a kocsi
-azonosítójával vannak elmentve, tehát átnevezés után a régi rekordok az új
-modellhez tartoznak.
+Lap-time records reference car IDs. After a rename, existing records under
+the plain ID refer to the new model.
 
-## Buktatók, amikbe belefutottunk
+## Known pitfalls
 
-**A `-kn -km` megakadályozza a takarítást.** Ez a két kapcsoló a NÉVVEL
-ellátott node-okat és anyagokat tartja meg, egy packban viszont mindennek van
-neve — így a gltfpack semmit nem dobott el, és mind a 11 kimenet 45,7 MB lett.
-A neveket nem lehet elhagyni (a kerékfelismerés azokra épül), ezért a *többi*
-kocsi nevét kell elvenni.
+**`-kn -km` prevents cleanup.** These flags retain named nodes and materials.
+Everything in a pack has a name, so gltfpack retained unused content and all
+11 outputs were 45.7 MB. Wheel detection needs names, so remove names from
+the other cars rather than discarding all names.
 
-**A gltfpack a jelenetből elérhetetlen node-okat sem dobja el.** A mesh-
-hivatkozásukat is el kell vágni.
+**gltfpack retains nodes unreachable from the scene.** Their mesh references
+must also be removed.
 
-**A nem hivatkozott képeket végképp nem takarítja.** A 2014-es packnál mind a
-102 kép bent maradt (23,6 MB) azután is, hogy az anyagok már kiestek. Az
-anyagokat, textúrákat és képeket magunknak kell szűrni, újraindexeléssel.
+**Unreferenced images are retained too.** In the 2014 pack, all 102 images
+(23.6 MB) remained even after unused materials were removed. Filter materials,
+textures and images explicitly, rebuilding their indices.
 
-**Háromszög-szintű vágásnál a transzformációt be kell égetni.** Elsőre a
-lokális csúcspozíciókat írtuk ki, így a Sketchfab-export forgatása elveszett és
-a kocsik az oldalukon feküdtek: 8,7 × **23,9** × 5,2 a helyes 8,7 × 5,2 × 23,9
-helyett. A pozíciókra a teljes mátrix, a normálisokra a forgatás-rész
-vonatkozik.
+**Triangle-level splitting must bake transforms.** Exporting local vertex
+positions lost the Sketchfab rotation and left cars on their sides:
+8.7 × **23.9** × 5.2 instead of 8.7 × 5.2 × 23.9. Apply the full transform
+to positions and its rotation component to normals.
 
-**A hézag nem jó elválasztó.** A kocsik szinte összeérnek (1,8 m széles autók
-1,96 méterenként), ezért a hézag-küszöb egybefogta őket. A helyes szabály az
-ÁTFEDÉS: két külön kocsi nem lóg egymásba, egy kocsi darabjai viszont igen.
+**Gaps are unreliable separators.** Cars were nearly touching: 1.8-meter-wide
+cars spaced 1.96 meters apart. A gap threshold merged them. Test overlap
+instead: components belonging to one car overlap, while separate cars do not.
 
-**A kerék-átmérőnek nincs abszolút alsó korlátja.** A felni természetéből
-adódóan kisebb a guminál (az F14 T-nél 0,31 a 0,56-hoz képest), és egy fix
-küszöb pont a kerék belső részeit zárja ki — a felhasználó élőben vette észre,
-hogy „a felni nem forog". A korlát a gumihoz képest relatív legyen.
+**Wheel diameter needs a relative minimum.** Rims are naturally smaller than
+tires: 0.31 versus 0.56 on the F14 T. An absolute threshold excluded inner
+wheel parts, leaving rims stationary. Set limits relative to the tire.
 
-**Koncentricitást a tengelyre MERŐLEGES síkban mérj.** A kerék az X tengely
-körül forog, tehát a tengely menti eltolás közömbös: a kerék külső és belső
-oldala 0,13-mal odébb ül, és egy 3D-távolság ezeket tévesen kizárja. Ugyanez a
-hiba a kilengés-mérésnél is előjött, kétszer.
+**Measure concentricity in the plane perpendicular to the axle.** Wheels
+rotate around the X axis, so offsets along it are irrelevant. Inner and
+outer wheel faces can be 0.13 units apart along X, and a 3D-distance test
+would incorrectly exclude them. The same error also affected orbital-motion
+measurements.
 
-## Kapcsolódó
+## Related tools
 
-- `tools/README.md` — a hétköznapi eszközök (`cars:wheels`, `cars:compress`)
-- `tools/audit/` — kerék-ellenőrzők: `wheel-orbit.mjs` (kileng-e valami),
-  `missing-wheel-parts.mjs` (kimaradt-e kerék-alkatrész),
-  `fix-wheel-orbit.mjs`, `caliper-exact.mjs`, `drop-nonround.mjs`
+- [tools/README.md](README.md): everyday tools such as `cars:wheels`
+  and `cars:compress`.
+- `tools/audit/`: `wheel-orbit.mjs` checks orbital motion,
+  `missing-wheel-parts.mjs` finds omitted wheel components;
+  also see `fix-wheel-orbit.mjs`, `caliper-exact.mjs` and `drop-nonround.mjs`.

@@ -1,34 +1,35 @@
-# Apex Overdrive — telepítési útmutató
+# Apex Overdrive — deployment guide
 
-Ez nyilvános, általános telepítési leírás. A példákban szereplő SSH-host,
-felhasználó, port és kulcs helyettesítő érték; a saját környezetedhez igazítsd őket.
-Éles hozzáférési adatokat, szerverleltárt és titkok tárolási helyét ne írd a repóba.
+This is a public, general-purpose deployment guide. SSH hosts, usernames,
+ports and keys in the examples are placeholders; adapt them to your own
+environment. Keep production access details, server inventories and secret
+storage locations out of the repository.
 
-A projekt repója: `https://github.com/szabolevi98/apex-overdrive`.
-A publikus játék: `https://racing.levente.net/`.
+Project repository: `https://github.com/szabolevi98/apex-overdrive`.
+Public game: `https://racing.levente.net/`.
 
-## Követelmények és felépítés
+## Requirements and architecture
 
-- Node.js 20 vagy újabb.
-- Linuxon systemd; HTTPS-hez Apache és érvényes tanúsítvány.
-- Opcionálisan MySQL/MariaDB a tartós eredménytároláshoz.
-- Elegendő tárhely az autó-, pálya- és környezetmodelleknek.
+- Node.js 20 or later.
+- Linux with systemd; Apache and a valid certificate for HTTPS.
+- Optional MySQL/MariaDB for persistent results.
+- Enough disk space for car, track and environment models.
 
-A kliens nyers ES-modulokat használ, külön kliens-build nem szükséges.
-Apache közvetlenül szolgálja ki a `web/` könyvtárat és a `/shared/` útvonalat.
-Az `/api/` és `/ws` kéréseket a helyi Node-folyamatnak továbbítja.
+The client uses native ES modules and does not require a separate build.
+Apache serves `web/` and the `/shared/` route directly, forwarding `/api/`
+and `/ws` requests to the local Node.js process.
 
 ```text
-böngésző → Apache HTTPS → web/ és shared/
-                       → /api/ és /ws → Node a loopback interfészen
+browser → Apache HTTPS → web/ and shared/
+                       → /api/ and /ws → Node.js on loopback
 ```
 
-Más webhelyek mellé külön VirtualHostot hozz létre.
+Use a separate VirtualHost when hosting alongside other websites.
 
-## SSH-kapcsolat
+## SSH connection
 
-A saját gépeden állíts be SSH-hostaliast. A következő `~/.ssh/config` részlet
-kizárólag példa, nem az üzemelő játék kapcsolati adata:
+Configure an SSH host alias on your own machine. This `~/.ssh/config`
+snippet is an example, not the connection details of the public game:
 
 ```sshconfig
 Host apex-overdrive-server
@@ -39,15 +40,15 @@ Host apex-overdrive-server
     IdentitiesOnly yes
 ```
 
-A további parancsok ezt a helyi aliast használják. A privát kulcsot soha ne
-másold a repóba. A GitHubhoz használt szerveroldali deploy key ettől külön
-kulcs legyen; ha csak kódot tölt le, elegendő a read-only jogosultság.
-A szerver SSH-hostkulcsát megbízható csatornán ellenőrizd.
+The remaining commands use this local alias. Never copy private keys into
+the repository. Use a separate server-side deploy key for GitHub; read-only
+access is sufficient if the server only downloads code. Verify the server's
+SSH host key through a trusted channel.
 
-## Kód és assetek
+## Code and assets
 
-A következő példák telepítési könyvtára `/opt/racing`; ha mást használsz,
-a systemd- és Apache-mintákat is hozzá kell igazítani.
+The examples use `/opt/racing` as the installation directory. If you choose
+another path, adjust the systemd and Apache templates too.
 
 ```bash
 git clone git@github.com:szabolevi98/apex-overdrive.git /opt/racing
@@ -56,25 +57,25 @@ npm ci --omit=dev
 cp .env.example .env
 ```
 
-A nagy bináris assetek nincsenek Gitben: GLB, GLTF, HDR, EXR, BIN és
-pályatextúrák külön feltöltést igényelnek. A kézzel készített metaadatok,
-például a rajtpontok, kapuk, boxbeállítások és zónatérképek verziókövetve vannak.
+Large binary assets are excluded from Git: upload GLB, GLTF, HDR, EXR, BIN
+and track textures separately. Hand-authored metadata such as spawn points,
+gates, pit settings and zone maps is versioned.
 
-Helyi gépről, megfelelő céloldali írási jogosultsággal:
+From your local machine, with appropriate write permissions at the destination:
 
 ```bash
 rsync -avP web/assets/ apex-overdrive-server:/opt/racing/web/assets/
 ```
 
-Egy-egy fájl `scp`-vel is feltölthető. A célkönyvtárnak előbb léteznie kell.
-Új pályához a `collision.bin`, autónál pedig a
-`web/assets/cars/compressed/` alatti remote/ghost modell is szükséges.
-Első telepítéskor egy autóval, egy pályával és egy égbolttal ellenőrizhető a rendszer.
+Individual files can also be uploaded with `scp`. Create destination
+directories first. New tracks require `collision.bin`, and cars need their
+remote/ghost models under `web/assets/cars/compressed/` too. One car, one
+track and one environment are sufficient to check an initial installation.
 
-## Környezeti beállítások és adatbázis
+## Environment and database
 
-A `.env` fájlt kizárólag a szerveren töltsd ki; Gitben nem szerepelhet.
-A jelszó az alábbi mintában kifejezetten helyettesítő érték:
+Fill in `.env` only on the server and keep it out of Git. The password below
+is explicitly a placeholder:
 
 ```ini
 HOST=127.0.0.1
@@ -87,23 +88,23 @@ DB_USER=example_game_user
 DB_PASSWORD=REPLACE_WITH_A_UNIQUE_SECRET
 ```
 
-Hozz létre külön adatbázist és olyan adatbázis-felhasználót, amely csak ehhez
-az adatbázishoz fér hozzá. A táblákat az alkalmazás induláskor létrehozza.
-Adatbázis nélkül is elindul, de a tartós eredménytárolás nem működik.
+Create a separate database and a user with access only to that database.
+The application creates its tables at startup. It can run without a
+database, but results will not be persisted.
 
-Élesben az `ALLOW_DEV_WRITES=0` kötelező: a fejlesztői mentési végpontok
-nem publikus használatra készültek. A `HOST=127.0.0.1` a proxy mögött tartja
-a Node-kiszolgálót; annak portját ne tedd közvetlenül elérhetővé az internetről.
+Set `ALLOW_DEV_WRITES=0` in production: developer save endpoints are not
+intended for public use. `HOST=127.0.0.1` keeps Node.js behind the proxy;
+do not expose its port directly to the internet.
 
-A szolgáltatás külön, bejelentkezésre nem használható rendszerfelhasználóval fusson.
-A kódot olvashassa, de ne írhassa; a `.env` csak az adminisztrátor és a
-szolgáltatás felhasználója számára legyen olvasható, például `640` jogosultsággal.
+Run the service as a dedicated system user without an interactive login.
+It should be able to read the application code, but not modify it. Restrict
+`.env` to the administrator and service user, for example with mode `640`.
 
 ## systemd
 
-A követett minta: [deploy/systemd/racing.service](deploy/systemd/racing.service).
-A benne szereplő rendszerfelhasználót és könyvtárat a telepítéshez igazítsd,
-majd másold a megfelelő systemd-könyvtárba.
+Use [deploy/systemd/racing.service](deploy/systemd/racing.service) as a
+template. Adjust its system user and working directory, then install it in
+the appropriate systemd directory.
 
 ```bash
 sudo systemctl daemon-reload
@@ -112,64 +113,63 @@ sudo systemctl status racing
 journalctl -u racing -n 50
 ```
 
-Az alkalmazás a munkakönyvtár `.env` fájlját `dotenv` segítségével olvassa.
-A szolgáltatás mintája ezért nem ad meg külön `EnvironmentFile` sort.
+The application reads `.env` from its working directory using `dotenv`.
+The service template therefore does not specify a separate `EnvironmentFile`.
 
-## Apache és HTTPS
+## Apache and HTTPS
 
-A követett VirtualHost-minta:
+VirtualHost template:
 [deploy/apache/racing.levente.net-le-ssl.conf](deploy/apache/racing.levente.net-le-ssl.conf).
-Más domainnél a `ServerName`, a tanúsítvány útvonala és a könyvtárak is módosítandók.
+For another domain, adjust `ServerName`, certificate paths and directories.
 
-Szükséges modulok:
+Enable the required modules:
 
 ```bash
 sudo a2enmod proxy proxy_http proxy_wstunnel ssl rewrite headers deflate
 sudo apache2ctl configtest
 ```
 
-A konfigurációban:
+Configure:
 
-- `DocumentRoot`: a projekt `web/` könyvtára.
-- `Alias /shared/`: a projekt `shared/` könyvtára.
+- `DocumentRoot`: the project's `web/` directory.
+- `Alias /shared/`: the project's `shared/` directory.
 - `/ws`: `ws://127.0.0.1:3000/ws`.
 - `/api/`: `http://127.0.0.1:3000/api/`.
-- A gyökérútvonalat Apache szolgálja ki, nem a Node-proxy.
-- A nagy asseteknél a MIME-típus, range-kérések és cache-fejlécek is számítanak.
+- Serve the root path through Apache rather than the Node.js proxy.
+- Preserve appropriate MIME types, range support and cache headers for large assets.
 
-A saját domainedhez állíts be DNS-t és érvényes TLS-tanúsítványt, valamint
-ellenőrzött automatikus megújítást. A HTTP-kéréseket irányítsd HTTPS-re.
-Sikeres konfigurációellenőrzés után alkalmazd a beállítást:
+Configure DNS and a valid TLS certificate for your domain, with verified
+automatic renewal. Redirect HTTP requests to HTTPS. After a successful
+configuration check, apply the changes:
 
 ```bash
 sudo systemctl reload apache2
 ```
 
-## Frissítés
+## Updates
 
-A szerveren, a telepítést kezelő felhasználóval:
+On the server, as the user responsible for deployment:
 
 ```bash
 cd /opt/racing
 git pull --ff-only
-# Csak függőségváltozás esetén:
+# Only when dependencies change:
 npm ci --omit=dev
-# Szerverkód vagy autó-/pálya-asset változása után:
+# After server-code or car/track asset changes:
 sudo systemctl restart racing
 sudo systemctl is-active racing
 ```
 
-Az asset-manifestet a szerver gyorsítótárazza, ezért új vagy módosított
-játékasset feltöltése után újraindítás szükséges. A Git pull önmagában
-nem másolja fel a Gitből kizárt modelleket és ütközési fájlokat.
-A csak statikus arculati fájlokat érintő frissítéshez nem kell újraindítás.
+The server caches its asset manifest, so new or modified game assets require
+a restart. Git pull does not transfer models and collision files excluded
+from Git. Updates limited to static branding files do not require a restart.
 
-Feltöltés után hasonlítsd össze a helyi és távoli fájl méretét vagy SHA-256-át.
-Nagy asseteknél a tartalomverziózott URL biztosítja a cache frissülését.
+After uploading, compare local and remote file sizes or SHA-256 hashes.
+Content-versioned URLs refresh the cache for large assets.
 
-## Ellenőrzés és hibakeresés
+## Validation and troubleshooting
 
-A példabeli hostot cseréld a telepítés publikus domainjére:
+Replace the example host with your deployment's public domain:
 
 ```bash
 curl -I https://game.example.com/
@@ -177,16 +177,16 @@ curl https://game.example.com/api/status
 curl https://game.example.com/api/assets
 ```
 
-Elvárt: a főoldal és az API 200-as választ adjon, a manifest az aktuális
-asseteket tartalmazza. A WebSocket-kapcsolat upgrade-válasza
-`101 Switching Protocols`; asset-range kérésre `206` várható.
-Böngészőből ellenőrizd a menüt és a többjátékos kapcsolatot is.
+The homepage and API should return HTTP 200, and the manifest should contain
+the current assets. WebSocket upgrades should return
+`101 Switching Protocols`; asset range requests should return `206`.
+Also check the menu and multiplayer connection in a browser.
 
-- Főoldalhiba: VirtualHost, fájljogosultságok és Apache-napló.
-- API-hiba: szolgáltatásállapot, Node-napló és loopback API-elérés.
-- WebSocket-hiba: proxy-modulok és a `/ws` szabály sorrendje.
-- Üres assetlista: feltöltött fájlok, olvasási jog és manifestfrissítés.
-- Hiányzó pályaütközés: a megfelelő `collision.bin` feltöltése.
+- Homepage errors: check the VirtualHost, file permissions and Apache logs.
+- API errors: check the service, Node.js logs and loopback API access.
+- WebSocket errors: check proxy modules and `/ws` rule ordering.
+- Empty asset lists: check uploads, read access and manifest refresh.
+- Missing track collisions: upload the matching `collision.bin`.
 
-A saját szerver leltárát, kapcsolati adatait és privát üzemeltetési jegyzeteit
-a nyilvános repótól elkülönítve tárold.
+Store your server inventory, connection details and private operational
+notes separately from the public repository.
